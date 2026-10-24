@@ -53,12 +53,18 @@ export const db = {
      * Los estudiantes deberán invocar esto dentro de su DataLoader.
      */
     async fetchFacturasByClienteIdsBatch(clienteIds) {
-        console.log("\x1b[32m%s\x1b[0m", `[DB BATCH READ] SELECT * FROM facturas WHERE cliente_id IN (${clienteIds.map(id => `'\${id}'`).join(', ')});`);
+        console.log("\x1b[32m%s\x1b[0m", `[DB BATCH READ] SELECT * FROM facturas WHERE cliente_id IN (${clienteIds.map(id => `'${id}'`).join(', ')});`);
         await delay(200); // Mismo delay, pero trae la información de TODOS los ids provistos de un solo golpe.
         
-        // Retorna un arreglo mapeado donde cada índice corresponde estrictamente a las llaves solicitadas (Restricción de DataLoader)
-        return clienteIds.map(id => 
-            FACTURAS_RECORDS.filter(factura => factura.clienteId === id)
-        );
+        const clienteIdsSolicitados = new Set(clienteIds);
+        const facturasPorClienteId = new Map(clienteIds.map(id => [id, []]));
+
+        for (const factura of FACTURAS_RECORDS) {
+            if (clienteIdsSolicitados.has(factura.clienteId)) {
+                facturasPorClienteId.get(factura.clienteId).push(factura);
+            }
+        }
+
+        return clienteIds.map(id => facturasPorClienteId.get(id));
     }
 };

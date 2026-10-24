@@ -48,8 +48,14 @@ Instala las librerías necesarias para levantar el servidor y aplicar la optimiz
 npm install @apollo/server graphql dataloader
 ```
 
-### 4. Crear el Servidor Base
-Crea un archivo llamado `server.js` y pega el código base proporcionado por el docente en la guía de la práctica.
+### 4. Estructura del proyecto
+El proyecto separa el esquema, los resolutores y el cargador por lotes:
+* `schema.graphql`: contrato SDL de clientes, facturas y la consulta raíz.
+* `resolvers-naive.js`: variante ingenua, que consulta las facturas por cada cliente.
+* `resolvers.js`: variante optimizada, que obtiene las facturas a través de DataLoader.
+* `dataloaders.js`: crea los cargadores usados por una petición.
+* `database.js`: persistencia simulada y consultas individuales y por lotes.
+* `server.js`: inicializa Apollo Server y lee el esquema SDL desde el archivo.
 
 ### 5. Ejecutar el Servidor
 Inicia la aplicación ejecutando:
@@ -64,6 +70,8 @@ Deberías ver en tu consola el siguiente mensaje:
 ## 🔍 Guía de Ejecución y Diagnóstico (El Reto Técnico)
 
 ### Fase 1: Reproducir el Problema N+1 (Estado Ingenuo)
+Para ejecutar la variante ingenua, cambia en `server.js` el import de `./resolvers.js` por `./resolvers-naive.js` y reinicia el servidor.
+
 1. Abre tu navegador e ingresa a `http://localhost:4000/` para abrir el entorno de pruebas de **Apollo Sandbox**.
 2. Ejecuta la siguiente consulta jerárquica para simular los requerimientos de un Dashboard empresarial:
    ```graphql
@@ -77,21 +85,18 @@ Deberías ver en tu consola el siguiente mensaje:
      }
    }
    ```
-3. **Observa la consola de tu terminal.** Notarás que para recuperar solo 3 clientes, el servidor ejecuta **4 consultas simuladas** (`1` para obtener los clientes y `N` individuales para las facturas de cada cliente).
+3. **Observa la consola de tu terminal.** La base simulada contiene 5 clientes, por lo que el servidor ejecuta **6 consultas simuladas** (`1` para obtener los clientes y `N` individuales para las facturas).
 4. El tiempo de respuesta acumulado se degrada drásticamente debido a las llamadas secuenciales redundantes a la capa de datos.
 
 ### Fase 2: Implementación de la Solución (Objetivo de Evaluación)
-Para superar la práctica con éxito, debes modificar el archivo `server.js` para cumplir con las siguientes directrices de arquitectura:
-* **Crear el Método por Lotes:** Modifica el objeto de persistencia para implementar una función que reciba un arreglo de llaves (`clienteIds`) y devuelva las facturas agrupadas utilizando una consulta selectiva única.
-* **Instanciar el DataLoader en el Contexto:** Configura la inicialización de Apollo Server de manera que el `DataLoader` se instancie de forma dinámica dentro de la función `context` por petición. *¡Atención! Instanciar el Loader fuera de este bloque de manera global invalidará la entrega por generar riesgos de fuga de información entre usuarios.*
-* **Actualizar el Resolver:** Modifica el solucionador de la propiedad `facturas` en el tipo `Cliente` para que invoque el método `.load()` del cargador inyectado en el contexto.
+La variante optimizada ya está conectada por defecto en `server.js`. `database.js` agrupa las facturas para todos los `clienteIds` solicitados en una sola operación; `dataloaders.js` adapta ese método al contrato de DataLoader; y `server.js` crea los loaders dentro de `context` para cada petición. El resolver `Cliente.facturas` utiliza `.load()` para obtener sus facturas.
+
+Ejecuta la misma consulta. Debes observar **2 consultas simuladas en total**: una para los clientes y una consulta por lotes para las facturas. Para volver a la variante optimizada después de probar la ingenua, restaura el import de `./resolvers.js` en `server.js`.
 
 ---
 
 ## 📝 Formato de Entrega
 
-Deberás subir a la plataforma institucional un archivo comprimido (`.zip`) con el nombre `Apellido_Nombre_Practica3_GraphQL` que contenga:
-1. Tu archivo `server.js` completamente funcional y optimizado.
-2. Un breve archivo de texto (`reporte.txt` o modificado en este mismo documento) indicando el número exacto de consultas impresas en consola tras aplicar el patrón DataLoader al ejecutar la misma query.
+Deberás subir a la plataforma institucional un archivo comprimido (`.zip`) con el nombre `Apellido_Nombre_Practica3_GraphQL` que contenga el servidor funcional y optimizado, el esquema `schema.graphql`, `resolvers.js`, `resolvers-naive.js`, `dataloaders.js` y `database.js`. Indica en un breve archivo de texto (`reporte.txt` o modificado en este documento) que la consulta de dashboard optimizada imprime 2 consultas simuladas en consola.
 
 *Nota: Excluye explícitamente la carpeta `node_modules/` al empaquetar tu entrega.*
